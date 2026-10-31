@@ -1,0 +1,27 @@
+/*!
+unofficial [authkeyz](https://authkeyz.bond) library that implements all versions of the api.
+to make an api version available use the feature flag for that version.
+example
+```toml
+authkeyz = { version = "*" } # this will enable 1.2 api version (default)
+```
+by default the 1.2 api is enabled because it is most commonly used. so if you dont want the 1.2 api you have to disable it.
+```toml
+authkeyz = { version = "*", features = ["v1_1", "seller"], default-features = false } # this will enable 1.1 and seller api
+```
+the ``default-features = false`` disabled the default v1_2 api.
+
+basic usage:
+```rust
+let mut auth = authkeyz::v1_2::AuthKeyzApi::new("application name", "ownerid", "application secret", "application version", "api url"); // if you dont have a custom domain for api use "https://authkeyz.bond/api/1.2/"
+auth.init(None).unwrap(); // None -> no hash set, Some("hash") -> if you have has checking enabled
+auth.login("username".to_string(), "password".to_string(), Some("hwid".to_string())).unwrap(); // if you want to automaticly generate hwid use None insted of Some(...)
+```
+
+also if you want to use an obfuscator for rust i recommend using [obfstr](https://crates.io/crates/obfstr) and [llvm obfuscator](https://github.com/eshard/obfuscator-llvm/wiki/Rust-obfuscation-guide)
+
+if the panic feature is enabled then the v1_2 api will panic insted of returning an error when it detects that the request was tampered with
+*/
+
+#[cfg(feature = "v1_2")]
+pub mod v1_2;
