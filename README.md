@@ -3,7 +3,7 @@
 # authkeyz rust library
 https://docs.rs/authkeyz/latest/authkeyz/
 
-if you find any bugs. please report them https://github.com/D0A1V2I3D/authkeyz-rust/issues
+if you find any bugs. please report them https://github.com/AuthKeyz/authkeyz-rust-lib/issues
 
 # note
 a lot of code is from the official authkeyz library,
