@@ -1,4 +1,4 @@
-/*!
+﻿/*!
 unofficial [authkeyz](https://authkeyz.bond) library that uses 1.2 api version
 
 basic usage:
@@ -14,7 +14,9 @@ also if you want to use an obfuscator for rust i recommend using [obfstr](https:
 use base16::decode;
 use debugoff::multi_ptraceme_or_die;
 use goldberg::goldberg_stmts;
+use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use hmac_sha256::HMAC;
+use std::time::{SystemTime, UNIX_EPOCH};
 use httparse::Header;
 use reqwest::header::HeaderMap;
 use reqwest::Client;
@@ -68,10 +70,21 @@ impl Default for Resp {
 
 struct Data(String);
 
+fn url_encode(input: &str) -> String {
+    let mut out = String::with_capacity(input.len());
+    for b in input.bytes() {
+        match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => out.push(b as char),
+            _ => out.push_str(&format!("%{:02X}", b)),
+        }
+    }
+    out
+}
+
 impl Data {
     fn insert<T: ToString, G: ToString>(&mut self, key: T, val: G) {
         self.0
-            .push_str(&format!("{}={}&", key.to_string(), val.to_string()));
+            .push_str(&format!("{}={}&", url_encode(&key.to_string()), url_encode(&val.to_string())));
     }
 }
 
@@ -169,13 +182,7 @@ impl AuthKeyzApi {
         if resp == "AuthKeyz_Invalid" {
             return Res(Err("The application doesn't exist".to_string()));
         }
-        if !head.contains_key("signature") {
-
-            return Res(Err("response was tampered with".to_string()));
-        }
-        let sig = head.get("signature").unwrap().to_str().unwrap();
-        if sig != Self::make_hmac(&resp, &self.secret) {
-
+        if !Self::verify_response(&head, &resp, &self.secret) {
             return Res(Err("response was tampered with".to_string()));
         }
         let json_rep: serde_json::Value = serde_json::from_str(&resp).unwrap();
@@ -228,13 +235,7 @@ impl AuthKeyzApi {
             let resp = req.res;
             let head = req.head;
 
-        if !head.contains_key("signature") {
-
-            return Res(Err("response was tampered with".to_string()));
-        }
-        let sig = head.get("signature").unwrap().to_str().unwrap();
-        if sig != Self::make_hmac(&resp, &self.enckey_s) {
-
+        if !Self::verify_response(&head, &resp, &self.enckey_s) {
             return Res(Err("response was tampered with".to_string()));
         }
         let json_rep: serde_json::Value = serde_json::from_str(&resp).unwrap();
@@ -269,13 +270,7 @@ impl AuthKeyzApi {
             let resp = req.res;
             let head = req.head;
 
-        if !head.contains_key("signature") {
-
-            return Res(Err("response was tampered with".to_string()));
-        }
-        let sig = head.get("signature").unwrap().to_str().unwrap();
-        if sig != Self::make_hmac(&resp, &self.enckey_s) {
-
+        if !Self::verify_response(&head, &resp, &self.enckey_s) {
             return Res(Err("response was tampered with".to_string()));
         }
         let json_rep: serde_json::Value = serde_json::from_str(&resp).unwrap();
@@ -316,13 +311,7 @@ impl AuthKeyzApi {
             let resp = req.res;
             let head = req.head;
 
-        if !head.contains_key("signature") {
-
-            return Res(Err("response was tampered with".to_string()));
-        }
-        let sig = head.get("signature").unwrap().to_str().unwrap();
-        if sig != Self::make_hmac(&resp, &self.enckey_s) {
-
+        if !Self::verify_response(&head, &resp, &self.enckey_s) {
             return Res(Err("response was tampered with".to_string()));
         }
         let json_rep: serde_json::Value = serde_json::from_str(&resp).unwrap();
@@ -364,13 +353,7 @@ impl AuthKeyzApi {
             let resp = req.res;
             let head = req.head;
 
-        if !head.contains_key("signature") {
-
-            return Res(Err("response was tampered with".to_string()));
-        }
-        let sig = head.get("signature").unwrap().to_str().unwrap();
-        if sig != Self::make_hmac(&resp, &self.enckey_s) {
-
+        if !Self::verify_response(&head, &resp, &self.enckey_s) {
             return Res(Err("response was tampered with".to_string()));
         }
         let json_rep: serde_json::Value = serde_json::from_str(&resp).unwrap();
@@ -406,13 +389,7 @@ impl AuthKeyzApi {
             let resp = req.res;
             let head = req.head;
 
-        if !head.contains_key("signature") {
-
-            return Res(Err("response was tampered with".to_string()));
-        }
-        let sig = head.get("signature").unwrap().to_str().unwrap();
-        if sig != Self::make_hmac(&resp, &self.enckey_s) {
-
+        if !Self::verify_response(&head, &resp, &self.enckey_s) {
             return Res(Err("response was tampered with".to_string()));
         }
         let json_rep: serde_json::Value = serde_json::from_str(&resp).unwrap();
@@ -442,13 +419,7 @@ impl AuthKeyzApi {
             let resp = req.res;
             let head = req.head;
 
-        if !head.contains_key("signature") {
-
-            return Res(Err("response was tampered with".to_string()));
-        }
-        let sig = head.get("signature").unwrap().to_str().unwrap();
-        if sig != Self::make_hmac(&resp, &self.enckey_s) {
-
+        if !Self::verify_response(&head, &resp, &self.enckey_s) {
             return Res(Err("response was tampered with".to_string()));
         }
         let json_rep: serde_json::Value = serde_json::from_str(&resp).unwrap();
@@ -479,13 +450,7 @@ impl AuthKeyzApi {
             let resp = req.res;
             let head = req.head;
 
-        if !head.contains_key("signature") {
-
-            return Res(Err("response was tampered with".to_string()));
-        }
-        let sig = head.get("signature").unwrap().to_str().unwrap();
-        if sig != Self::make_hmac(&resp, &self.enckey_s) {
-
+        if !Self::verify_response(&head, &resp, &self.enckey_s) {
             return Res(Err("response was tampered with".to_string()));
         }
         let json_rep: serde_json::Value = serde_json::from_str(&resp).unwrap();
@@ -513,13 +478,7 @@ impl AuthKeyzApi {
             let resp = req.res;
             let head = req.head;
 
-        if !head.contains_key("signature") {
-
-            return Res(Err("response was tampered with".to_string()));
-        }
-        let sig = head.get("signature").unwrap().to_str().unwrap();
-        if sig != Self::make_hmac(&resp, &self.enckey_s) {
-
+        if !Self::verify_response(&head, &resp, &self.enckey_s) {
             return Res(Err("response was tampered with".to_string()));
         }
         let json_rep: serde_json::Value = serde_json::from_str(&resp).unwrap();
@@ -549,13 +508,7 @@ impl AuthKeyzApi {
             let resp = req.res;
             let head = req.head;
 
-        if !head.contains_key("signature") {
-
-            return Res(Err("response was tampered with".to_string()));
-        }
-        let sig = head.get("signature").unwrap().to_str().unwrap();
-        if sig != Self::make_hmac(&resp, &self.enckey_s) {
-
+        if !Self::verify_response(&head, &resp, &self.enckey_s) {
             return Res(Err("response was tampered with".to_string()));
         }
         let json_rep: serde_json::Value = serde_json::from_str(&resp).unwrap();
@@ -580,13 +533,7 @@ impl AuthKeyzApi {
             let resp = req.res;
             let head = req.head;
 
-        if !head.contains_key("signature") {
-
-            return Res(Err("response was tampered with".to_string()));
-        }
-        let sig = head.get("signature").unwrap().to_str().unwrap();
-        if sig != Self::make_hmac(&resp, &self.enckey_s) {
-
+        if !Self::verify_response(&head, &resp, &self.enckey_s) {
             return Res(Err("response was tampered with".to_string()));
         }
         let json_rep: serde_json::Value = serde_json::from_str(&resp).unwrap();
@@ -615,13 +562,7 @@ impl AuthKeyzApi {
             let resp = req.res;
             let head = req.head;
 
-        if !head.contains_key("signature") {
-
-            return Res(Err("response was tampered with".to_string()));
-        }
-        let sig = head.get("signature").unwrap().to_str().unwrap();
-        if sig != Self::make_hmac(&resp, &self.enckey_s) {
-
+        if !Self::verify_response(&head, &resp, &self.enckey_s) {
             return Res(Err("response was tampered with".to_string()));
         }
         let json_rep: serde_json::Value = serde_json::from_str(&resp).unwrap();
@@ -651,13 +592,7 @@ impl AuthKeyzApi {
             let resp = req.res;
             let head = req.head;
 
-        if !head.contains_key("signature") {
-
-            return Res(Err("response was tampered with".to_string()));
-        }
-        let sig = head.get("signature").unwrap().to_str().unwrap();
-        if sig != Self::make_hmac(&resp, &self.enckey_s) {
-
+        if !Self::verify_response(&head, &resp, &self.enckey_s) {
             return Res(Err("response was tampered with".to_string()));
         }
         let json_rep: serde_json::Value = serde_json::from_str(&resp).unwrap();
@@ -701,13 +636,7 @@ impl AuthKeyzApi {
             let resp = req.res;
             let head = req.head;
 
-        if !head.contains_key("signature") {
-
-            return Res(Err("response was tampered with".to_string()));
-        }
-        let sig = head.get("signature").unwrap().to_str().unwrap();
-        if sig != Self::make_hmac(&resp, &self.enckey_s) {
-
+        if !Self::verify_response(&head, &resp, &self.enckey_s) {
             return Res(Err("response was tampered with".to_string()));
         }
         let json_rep: serde_json::Value = serde_json::from_str(&resp).unwrap();
@@ -734,13 +663,7 @@ impl AuthKeyzApi {
             let resp = req.res;
             let head = req.head;
 
-        if !head.contains_key("signature") {
-
-            return Res(Err("response was tampered with".to_string()));
-        }
-        let sig = head.get("signature").unwrap().to_str().unwrap();
-        if sig != Self::make_hmac(&resp, &self.enckey_s) {
-
+        if !Self::verify_response(&head, &resp, &self.enckey_s) {
             return Res(Err("response was tampered with".to_string()));
         }
         let json_rep: serde_json::Value = serde_json::from_str(&resp).unwrap();
@@ -790,13 +713,7 @@ impl AuthKeyzApi {
             let resp = req.res;
             let head = req.head;
 
-        if !head.contains_key("signature") {
-
-            return Res(Err("response was tampered with".to_string()));
-        }
-        let sig = head.get("signature").unwrap().to_str().unwrap();
-        if sig != Self::make_hmac(&resp, &self.enckey_s) {
-
+        if !Self::verify_response(&head, &resp, &self.enckey_s) {
             return Res(Err("response was tampered with".to_string()));
         }
         let json_rep: serde_json::Value = serde_json::from_str(&resp).unwrap();
@@ -958,5 +875,37 @@ Server: \r\n\r\n
     fn make_hmac(message: &str, key: &str) -> String {
         let res: String = goldberg_stmts! {{ hex::encode(HMAC::mac(message, key)).to_string()}};
         res
+    }
+    fn verify_response(head: &HeaderMap, resp: &str, hmac_key: &str) -> bool {
+        if let (Some(ed_sig), Some(ts_val)) = (head.get("x-signature-ed25519"), head.get("x-signature-timestamp")) {
+            if let (Ok(sig_hex), Ok(ts_str)) = (ed_sig.to_str(), ts_val.to_str()) {
+                if let Ok(ts) = ts_str.trim().parse::<u64>() {
+                    if let Ok(now) = SystemTime::now().duration_since(UNIX_EPOCH) {
+                        if now.as_secs().abs_diff(ts) > 300 {
+                            return false;
+                        }
+                    }
+                } else {
+                    return false;
+                }
+                let pub_hex = "8e8d104f3ce9b29b411cfcf8e049d19fed42e63caa275e111bfa71ef3d237041";
+                if let (Ok(sig_bytes), Ok(pk_bytes)) = (hex::decode(sig_hex.trim()), hex::decode(pub_hex)) {
+                    if let (Ok(pk_arr), Ok(sig_arr)) = (<[u8; 32]>::try_from(pk_bytes.as_slice()), <[u8; 64]>::try_from(sig_bytes.as_slice())) {
+                        if let Ok(vk) = VerifyingKey::from_bytes(&pk_arr) {
+                            let sig = Signature::from_bytes(&sig_arr);
+                            let msg = format!("{}{}", ts_str.trim(), resp);
+                            return vk.verify(msg.as_bytes(), &sig).is_ok();
+                        }
+                    }
+                }
+                return false;
+            }
+        }
+        if let Some(sig_val) = head.get("signature") {
+            if let Ok(sig) = sig_val.to_str() {
+                return sig == Self::make_hmac(resp, hmac_key);
+            }
+        }
+        false
     }
 }

@@ -25,3 +25,5 @@ if the panic feature is enabled then the v1_2 api will panic insted of returning
 
 #[cfg(feature = "v1_2")]
 pub mod v1_2;
+#[cfg(feature = "v1_3")]
+pub use v1_2 as v1_3;
